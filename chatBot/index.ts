@@ -1,52 +1,65 @@
 import { IInputs, IOutputs } from "./generated/ManifestTypes";
+import * as React from 'react';
+import * as ReactDOM from 'react-dom/client';
+import { ChatComponent, IChatComponentProps } from './ChatComponent';
 
-export class chatBot implements ComponentFramework.StandardControl<IInputs, IOutputs> {
-    /**
-     * Empty constructor.
-     */
-    constructor() {
-        // Empty
+export class LLMChatbot implements ComponentFramework.StandardControl<IInputs, IOutputs> {
+    private container: HTMLDivElement;
+    private notifyOutputChanged: () => void;
+    private props: IChatComponentProps = {
+        apiKey: "",
+        userInput: "",
+        botResponse: "",
+        onResponseReceived: this.onResponseReceived.bind(this)
+    };
+
+    constructor() {}
+
+    public init(context: ComponentFramework.Context<IInputs>, notifyOutputChanged: () => void, state: ComponentFramework.Dictionary): void {
+        this.notifyOutputChanged = notifyOutputChanged;
+        this.container = document.createElement("div");
+        
+        // Get the API key directly from the property
+        this.props.apiKey = context.parameters.apiKey.raw || "";
+        this.props.userInput = context.parameters.userInput.raw || "";
+        
+        this.renderControl();
     }
 
-    /**
-     * Used to initialize the control instance. Controls can kick off remote server calls and other initialization actions here.
-     * Data-set values are not initialized here, use updateView.
-     * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to property names defined in the manifest, as well as utility functions.
-     * @param notifyOutputChanged A callback method to alert the framework that the control has new outputs ready to be retrieved asynchronously.
-     * @param state A piece of data that persists in one session for a single user. Can be set at any point in a controls life cycle by calling 'setControlState' in the Mode interface.
-     * @param container If a control is marked control-type='standard', it will receive an empty div element within which it can render its content.
-     */
-    public init(
-        context: ComponentFramework.Context<IInputs>,
-        notifyOutputChanged: () => void,
-        state: ComponentFramework.Dictionary,
-        container: HTMLDivElement
-    ): void {
-        // Add control initialization code
+    private renderControl(): void {
+        const root = ReactDOM.createRoot(this.container);
+        root.render(React.createElement(ChatComponent, this.props));
+        this._root = root;
     }
+    
+    
+    
 
-
-    /**
-     * Called when any value in the property bag has changed. This includes field values, data-sets, global values such as container height and width, offline status, control metadata values such as label, visible, etc.
-     * @param context The entire property bag available to control via Context Object; It contains values as set up by the customizer mapped to names defined in the manifest, as well as utility functions
-     */
     public updateView(context: ComponentFramework.Context<IInputs>): void {
-        // Add code to update control view
+        // Update properties from context
+        this.props.apiKey = context.parameters.apiKey.raw || "";
+        this.props.userInput = context.parameters.userInput.raw || "";
+        
+        this.renderControl();
     }
 
-    /**
-     * It is called by the framework prior to a control receiving new data.
-     * @returns an object based on nomenclature defined in manifest, expecting object[s] for property marked as "bound" or "output"
-     */
+    private onResponseReceived(response: string): void {
+        this.props.botResponse = response;
+        this.notifyOutputChanged();
+    }
+
     public getOutputs(): IOutputs {
-        return {};
+        return {
+            botResponse: this.props.botResponse
+        };
     }
 
-    /**
-     * Called when the control is to be removed from the DOM tree. Controls should use this call for cleanup.
-     * i.e. cancelling any pending remote calls, removing listeners, etc.
-     */
+    private _root: ReactDOM.Root | null = null;
+
     public destroy(): void {
-        // Add code to cleanup control if necessary
+        if (this._root) {
+            this._root.unmount();
+        }
     }
+    
 }
